@@ -1,0 +1,205 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background-color:#081012;color:#e8e0d0;padding:16px 14px 26px;
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.62 0 0 0 0 0.85 0 0 0 0 0.8 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+font-family:-apple-system,"PingFang SC",sans-serif}
+.title{text-align:center;font-size:12px;color:#9fc4a8;letter-spacing:3px;margin-bottom:12px}
+
+/* 外层：透视 + 裁剪（透视必须设在 3D 舞台的直接父级上） */
+.scene{position:relative;margin:0 auto}
+.clip{position:relative;overflow:hidden;border-radius:14px;perspective:820px;perspective-origin:50% 46%;isolation:isolate}
+
+/* 内层：3D 舞台 */
+.stage{position:relative;width:100%;aspect-ratio:16/9;transform-style:preserve-3d;
+touch-action:none;background:transparent;transform:rotateY(0deg) rotateX(0deg);
+transition:transform .5s cubic-bezier(.34,1.4,.5,1)}
+
+/* ① 模糊背景填充：铺满整卡，露边时看到模糊画面而非纯色 */
+.l-bg{position:absolute;inset:-30%;z-index:1;transform:translateZ(-30px) scale(1.3);
+filter:blur(7px) brightness(1.0) saturate(1.1)}
+.l-bg video{width:100%;height:100%;object-fit:cover;display:block}
+.l-vid canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.l-vid video{width:100%;height:100%;object-fit:cover;display:block;
+-webkit-mask-image:radial-gradient(ellipse 100% 100% at 50% 50%,#000 0%,#000 86%,rgba(0,0,0,.75) 93%,rgba(0,0,0,.3) 98%,rgba(0,0,0,0) 100%);
+mask-image:radial-gradient(ellipse 100% 100% at 50% 50%,#000 0%,#000 86%,rgba(0,0,0,.75) 93%,rgba(0,0,0,.3) 98%,rgba(0,0,0,0) 100%);
+-webkit-mask-size:100% 100%;mask-size:100% 100%}
+
+/* ② 主画面：四边遮罩淡出 + 中心清晰（mask 放容器上，兼容视频元素） */
+.l-vid{position:absolute;inset:0;z-index:2;overflow:visible;
+height:100%;object-fit:cover;display:block}
+
+/* ③ 中层粒子 */
+.l-fg{position:absolute;inset:0;transform:translateZ(100px) scale(.89);pointer-events:none;z-index:6}
+.pt{position:absolute;border-radius:50%;background:radial-gradient(circle,#f2fff0,rgba(190,240,200,.35) 60%,transparent);opacity:0;animation:float ease-in-out infinite}
+@keyframes float{0%{opacity:0;transform:translate(0,0) scale(.6)}22%{opacity:.9}50%{opacity:.5;transform:translate(5px,-10px) scale(1.15)}75%{opacity:.8}100%{opacity:0;transform:translate(-4px,-18px) scale(.7)}}
+
+/* ④ 前景大光斑 */
+.l-fg2{position:absolute;inset:0;transform:translateZ(150px) scale(.845);pointer-events:none;z-index:7}
+.big{position:absolute;border-radius:50%;opacity:0;
+background:radial-gradient(circle,rgba(255,255,235,.9),rgba(255,235,170,.28) 55%,transparent);animation:floatBig ease-in-out infinite}
+@keyframes floatBig{0%{opacity:0;transform:translate(0,0) scale(.7)}20%{opacity:.55}50%{opacity:.3;transform:translate(8px,-14px) scale(1.2)}75%{opacity:.5}100%{opacity:0;transform:translate(-6px,-24px) scale(.8)}}
+
+.tag{position:absolute;left:9px;top:9px;z-index:9;height:22px;padding:0 9px;border-radius:11px;display:flex;align-items:center;gap:5px;font-size:8.5px;letter-spacing:.8px;background:linear-gradient(135deg,rgba(255,236,180,.94),rgba(201,150,47,.92));color:#2b1f05;font-weight:700;box-shadow:0 4px 14px rgba(235,190,90,.5);transform:translateZ(20px)}
+.tag i{width:5px;height:5px;border-radius:50%;background:#a8322a;box-shadow:0 0 6px #d94a3d}
+.per{position:absolute;right:9px;top:9px;z-index:9;height:20px;padding:0 8px;border-radius:10px;display:flex;align-items:center;font-size:8px;letter-spacing:1px;color:#ffd9cf;background:rgba(70,20,16,.75);border:1px solid rgba(217,74,61,.85);transform:translateZ(20px)}
+.info{position:absolute;left:0;right:0;bottom:0;z-index:9;padding:22px 12px 12px;transform:translateZ(20px)}
+.nm{font-size:15px;color:#f4fff2;letter-spacing:3px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.ti{font-size:8.5px;color:#c8f0c8;letter-spacing:1px;margin-top:1px;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.rt{font-size:7px;color:#a8c8b0;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+
+/* ⑤ 边框：独立层，不参与 3D，永久置顶 */
+.border{position:absolute;inset:0;border-radius:14px;pointer-events:none;z-index:30;
+animation:edgeGlow 3.8s ease-in-out infinite}
+@keyframes edgeGlow{0%,100%{box-shadow:0 0 0 1.5px rgba(190,235,190,.5),0 0 20px rgba(120,200,150,.25),0 16px 40px rgba(0,0,0,.7)}
+50%{box-shadow:0 0 0 1.5px rgba(235,255,230,.95),0 0 42px rgba(140,220,170,.55),0 16px 40px rgba(0,0,0,.7)}}
+
+.hint{text-align:center;font-size:9.5px;color:#7d8a88;margin-top:14px}
+.hint b{color:#a8e0b0}
+</style></head><body>
+<div class="title">渌野芳粽 · 官方动态 <span style="color:#e8b45a">C14省电</span></div>
+
+<div class="scene" id="scene">
+  <div class="clip">
+    <div class="stage" id="stage">
+      <div class="l-bg"><video src="https://gitee.com/suantianfan/card-gifs/raw/master/xuxin_loop2.mp4" autoplay loop muted playsinline webkit-playsinline preload="auto"></video></div>
+      <div class="l-vid" id="art">
+        <canvas id="cv"></canvas>
+        <video id="v" crossorigin="anonymous" playsinline muted loop autoplay
+               src="https://gitee.com/suantianfan/card-gifs/raw/master/xuxin_loop2.mp4"
+               style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></video>
+      </div>
+            <div class="l-fg" id="fg"></div>
+      <div class="l-fg2" id="fg2"></div>
+      <div class="tag"><i></i>SSR</div>
+      <div class="per">三国</div>
+      <div class="info">
+        <div class="nm">徐 馨</div>
+        <div class="ti">渌野芳粽 · 动态</div>
+        <div class="rt">赛龙舟咯！</div>
+      </div>
+    </div>
+  </div>
+  <div class="border"></div>
+</div>
+<div class="hint">按住卡片<b>拖动</b>，观察多层纵深</div>
+
+<script>
+var stage=document.getElementById('stage'), art=document.getElementById('art'),
+    fg=document.getElementById('fg'), fg2=document.getElementById('fg2'), v=document.getElementById('v');
+for(var i=0;i<16;i++){
+  var p=document.createElement('div'); p.className='pt';
+  var s=2+Math.random()*3.5;
+  p.style.width=s+'px'; p.style.height=s+'px';
+  p.style.left=(3+Math.random()*92)+'%'; p.style.top=(6+Math.random()*72)+'%';
+  p.style.animationDuration=(4+Math.random()*4)+'s'; p.style.animationDelay=(Math.random()*4)+'s';
+  fg.appendChild(p);
+}
+for(var i=0;i<7;i++){
+  var b=document.createElement('div'); b.className='big';
+  var s=6+Math.random()*10;
+  b.style.width=s+'px'; b.style.height=s+'px';
+  b.style.left=(2+Math.random()*94)+'%'; b.style.top=(5+Math.random()*80)+'%';
+  b.style.animationDuration=(5+Math.random()*5)+'s'; b.style.animationDelay=(Math.random()*5)+'s';
+  fg2.appendChild(b);
+}
+document.querySelectorAll('video').forEach(function(x){ x.play().catch(function(){}); });
+document.addEventListener('touchstart',function(){ document.querySelectorAll('video').forEach(function(x){x.play().catch(function(){})}); },{once:true});
+
+var active=false,cx=0,cy=0;
+function move(x,y){
+  if(!active)return;
+  var tx=Math.max(-90,Math.min(90,x-cx)), ty=Math.max(-70,Math.min(70,y-cy));
+  stage.style.transition='transform .08s linear';
+  stage.style.transform='rotateY('+(tx*0.20)+'deg) rotateX('+(-ty*0.20)+'deg)';
+  window.__dx=(-tx*0.16); window.__dy=(-ty*0.12);
+  fg.style.transform='translateZ(100px) scale(.89) translate('+(-tx*1.1)+'px,'+(-ty*0.75)+'px)';
+  fg2.style.transform='translateZ(150px) scale(.845) translate('+(-tx*1.7)+'px,'+(-ty*1.1)+'px)';
+}
+function end(){
+  active=false;
+  stage.style.transition='transform .6s cubic-bezier(.34,1.3,.5,1)';
+  stage.style.transform='rotateY(0deg) rotateX(0deg)';
+  window.__dx=0; window.__dy=0;
+  fg.style.transform='translateZ(100px) scale(.89)';
+  fg2.style.transform='translateZ(150px) scale(.845)';
+}
+stage.addEventListener('touchstart',function(e){if(e.touches.length===1){active=true;cx=e.touches[0].clientX;cy=e.touches[0].clientY;}},{passive:true});
+stage.addEventListener('touchmove',function(e){if(e.touches.length===1)move(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+stage.addEventListener('touchend',end,{passive:true});
+stage.addEventListener('touchcancel',end,{passive:true});
+stage.addEventListener('mousedown',function(e){active=true;cx=e.clientX;cy=e.clientY;});
+window.addEventListener('mousemove',function(e){move(e.clientX,e.clientY);});
+window.addEventListener('mouseup',end);
+
+/* ===== Canvas alpha 羽化渲染 ===== */
+(function(){
+var v=document.getElementById('v'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var maskCv=document.createElement('canvas'), maskCtx=maskCv.getContext('2d');
+  function buildMask(){
+    var W=cv.width,H=cv.height; if(!W||!H) return;
+    maskCv.width=W; maskCv.height=H;
+    var R=Math.min(W,H)*0.035;
+    var blur=Math.min(W,H)*0.028;
+    maskCtx.clearRect(0,0,W,H);
+    maskCtx.filter='blur('+blur.toFixed(1)+'px)';
+    maskCtx.fillStyle='#fff';
+    var x=R+blur, y=R+blur, w=W-2*(R+blur), h=H-2*(R+blur), r=R;
+    maskCtx.beginPath();
+    maskCtx.moveTo(x+r,y);
+    maskCtx.lineTo(x+w-r,y); maskCtx.quadraticCurveTo(x+w,y,x+w,y+r);
+    maskCtx.lineTo(x+w,y+h-r); maskCtx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    maskCtx.lineTo(x+r,y+h); maskCtx.quadraticCurveTo(x,y+h,x,y+h-r);
+    maskCtx.lineTo(x,y+r); maskCtx.quadraticCurveTo(x,y,x+r,y);
+    maskCtx.closePath(); maskCtx.fill();
+    maskCtx.filter='none';
+  }
+  function resize(){
+    var r=cv.getBoundingClientRect();
+    var dpr=Math.min(window.devicePixelRatio||1,3);
+    var w=Math.round(r.width*dpr), h=Math.round(r.height*dpr);
+    if(w!==cv.width||h!==cv.height){ cv.width=w; cv.height=h; buildMask(); }
+  }
+  window.addEventListener('resize',resize);
+  if(window.ResizeObserver){ new ResizeObserver(resize).observe(cv); }
+  [0,120,400,900].forEach(function(t){ setTimeout(resize,t); });
+  resize();
+  function draw(){
+    if(v.readyState>=2 && cv.width>0){
+      var W=cv.width,H=cv.height;
+      var dx=(window.__dx||0)*(W/cv.getBoundingClientRect().width||1);
+      var dy=(window.__dy||0)*(H/cv.getBoundingClientRect().height||1);
+      ctx.globalCompositeOperation='source-over';
+      ctx.clearRect(0,0,W,H);
+      ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+      /* 图片在画布内按拖动偏移移动，画布与遮罩位置固定 */
+      ctx.drawImage(v, dx-W*0.075, dy-H*0.075, W*1.15, H*1.15);
+      /* 固定遮罩层（圆角 R + 柔边渐隐） */
+      ctx.globalCompositeOperation='destination-in';
+      ctx.drawImage(maskCv,0,0,W,H);
+      ctx.globalCompositeOperation='source-over';
+    }
+    rafId=requestAnimationFrame(draw);
+  }
+
+  /* ===== 自动暂停：不可见就休眠 ===== */
+  var running=true, rafId=0;
+  function pauseAll(){ if(!running) return; running=false; cancelAnimationFrame(rafId); v.pause(); }
+  function resumeAll(){ if(running) return; running=true; v.play().catch(function(){}); rafId=requestAnimationFrame(draw); }
+  if(window.IntersectionObserver){
+    new IntersectionObserver(function(es){
+      es.forEach(function(e){ e.isIntersecting?resumeAll():pauseAll(); });
+    },{threshold:0.15}).observe(cv);
+  }
+  document.addEventListener('visibilitychange',function(){
+    document.hidden?pauseAll():resumeAll();
+  });
+  v.addEventListener('error',function(){
+    v.src='https://raw.githubusercontent.com/suantianfan/card-gifs/main/xuxin_loop2.mp4';
+    v.load(); v.play().catch(function(){});
+  });
+    draw();
+})();
+</script></body></html>
