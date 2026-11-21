@@ -113,7 +113,7 @@ function move(x,y){
   if(!active)return;
   var tx=Math.max(-90,Math.min(90,x-cx)), ty=Math.max(-70,Math.min(70,y-cy));
   stage.style.transition='transform .08s linear';
-  stage.style.transform='rotateY('+(tx*0.20)+'deg) rotateX('+(-ty*0.20)+'deg)';
+  stage.style.transform='rotateY('+(tx*0.10)+'deg) rotateX('+(-ty*0.10)+'deg)';
   window.__dx=(-tx*0.16); window.__dy=(-ty*0.12);
   fg.style.transform='translateZ(100px) scale(.89) translate('+(-tx*1.1)+'px,'+(-ty*0.75)+'px)';
   fg2.style.transform='translateZ(150px) scale(.845) translate('+(-tx*1.7)+'px,'+(-ty*1.1)+'px)';
@@ -141,12 +141,16 @@ var v=document.getElementById('v'), cv=document.getElementById('cv'), ctx=cv.get
   function buildMask(){
     var W=cv.width,H=cv.height; if(!W||!H) return;
     maskCv.width=W; maskCv.height=H;
-    var R=Math.min(W,H)*0.035;
-    var blur=Math.min(W,H)*0.028;
+    var rect=cv.getBoundingClientRect();
+    var dpr=W/(rect.width||W);
+    /* blur 的可见过渡约 3 倍 sigma，要 3.5 CSS px 过渡 => sigma≈3.5/3 */
+    var sigma=Math.max(1.2, 3.5*dpr/3);
+    var R=Math.min(W,H)*0.07;
+    var pad=sigma;
     maskCtx.clearRect(0,0,W,H);
-    maskCtx.filter='blur('+blur.toFixed(1)+'px)';
+    maskCtx.filter='blur('+sigma.toFixed(1)+'px)';
     maskCtx.fillStyle='#fff';
-    var x=R+blur, y=R+blur, w=W-2*(R+blur), h=H-2*(R+blur), r=R;
+    var x=pad, y=pad, w=W-2*pad, h=H-2*pad, r=R;
     maskCtx.beginPath();
     maskCtx.moveTo(x+r,y);
     maskCtx.lineTo(x+w-r,y); maskCtx.quadraticCurveTo(x+w,y,x+w,y+r);
@@ -175,7 +179,7 @@ var v=document.getElementById('v'), cv=document.getElementById('cv'), ctx=cv.get
       ctx.clearRect(0,0,W,H);
       ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
       /* 图片在画布内按拖动偏移移动，画布与遮罩位置固定 */
-      ctx.drawImage(v, dx-W*0.075, dy-H*0.075, W*1.15, H*1.15);
+      ctx.drawImage(v, dx-W*0.06, dy-H*0.06, W*1.12, H*1.12);
       /* 固定遮罩层（圆角 R + 柔边渐隐） */
       ctx.globalCompositeOperation='destination-in';
       ctx.drawImage(maskCv,0,0,W,H);
